@@ -9,7 +9,7 @@ spectrum for mutations arising after a certain point in time. This can be used i
 approaches to computing the multipopulation SFS.
 
 See [example.py](example.py) for an example of how to construct a population history and compute its SFS entries.
-The results for the paper are implemented in the [benchmark.py](benchmark.py) and [benchmark_run.py](benchmark_run.py).
+The results from the paper are implemented in [benchmark.py](benchmark.py) and [benchmark_run.py](benchmark_run.py).
 
 ## Upcoming features
 
