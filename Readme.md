@@ -18,5 +18,5 @@ The current version of momi is 0.1. Upcoming features for the next version (1.0)
 * Parameter inference via gradient descent, automatic differentiation
 * Improvements to user interface and computational efficiency
 
-Version 1.0 will be released late 2015, to be accompanied with a second paper.
+Version 1.0 will be released late 2015 or early 2016, to be accompanied with a second paper.
 Stay tuned!
