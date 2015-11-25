@@ -10,16 +10,14 @@ approaches to computing the multipopulation SFS.
 
 ## Installation
 
-Prerequisites:
-* Scientific distribution of Python 2.7, e.g. [Anaconda](http://continuum.io/downloads), [Enthought Canopy](https://www.enthought.com/products/canopy/)
-  * Alternatively, custom installation of pip, cython, the SciPy stack
-* gcc
-  * May be required for installation of some dependencies
-
 To install, in the top-level directory of momi (where "setup.py" lives), type
 ```
 pip install .
 ```
+Prerequisites:
+* Scientific distribution of Python 2.7, e.g. [Anaconda](http://continuum.io/downloads), [Enthought Canopy](https://www.enthought.com/products/canopy/)
+  * Alternatively, custom installation of pip, cython, the SciPy stack
+* gcc
 
 ## Getting started
 
@@ -30,7 +28,7 @@ The results from the paper are implemented in [benchmark.py](benchmark.py) and [
 
 ## Upcoming features
 
-The current version of momi is 1.0. Upcoming features for the next version (1.0) of momi are:
+The current version of momi is 1.0. Upcoming features for the next version (2.0) of momi are:
 * Pulse migration/admixture
 * Parameter inference via gradient descent, automatic differentiation
 * Improvements to user interface and computational efficiency
