@@ -5,6 +5,7 @@ import operator
 import math
 from util import memoize_instance
 import warnings
+from demography import Demography
 
 math_mod = math
 myint,myfloat = int,float
@@ -21,7 +22,18 @@ Formulas from Hua Chen 2012, Theoretical Population Biology
 Note that for all formulas from that paper, N = diploid population size
 '''
 
-class SumProduct_Chen(object):
+class Demography_Chen(Demography):
+    """
+    Modified Demography class, that computes SFS via Chen's formulas
+    NOTE we only implemented Chen's formulas for constant pop. size
+    """
+    def __init__(self, *args, **kwargs):
+        super(Demography_Chen,self).__init__(*args, **kwargs)
+        
+    def _sum_product(self):
+        return _SumProduct_Chen(self)
+
+class _SumProduct_Chen(object):
     ''' 
     compute sfs of data via Hua Chen's sum-product algorithm
     '''
@@ -40,7 +52,7 @@ class SumProduct_Chen(object):
         ret = 0.0
 
         for n_bottom in range(n_top,n_leaves+1):
-            for n_derived_bottom in range(n_derived_top, self.G.n_derived_subtended_by[node]+1):
+            for n_derived_bottom in range(n_derived_top, self.G._n_derived_subtended_by[node]+1):
                 n_ancestral_bottom = n_bottom - n_derived_bottom
 
                 if n_derived_bottom > 0 and n_derived_top == 0:
@@ -64,7 +76,7 @@ class SumProduct_Chen(object):
         '''Likelihood of data given alleles (state) at bottom of node.'''
         # Leaf nodes are "clamped"
         if self.G.is_leaf(node):
-            if n_ancestral + n_derived == self.G.n_lineages_subtended_by[node] and n_derived == self.G.n_derived_subtended_by[node]:
+            if n_ancestral + n_derived == self.G.n_lineages_subtended_by[node] and n_derived == self.G._n_derived_subtended_by[node]:
                 return 1.0
             else:
                 return 0.0
@@ -99,7 +111,7 @@ class SumProduct_Chen(object):
     def joint_sfs(self, node):
         n_leaves = self.G.n_lineages_subtended_by[node]
         ret = 0.0
-        for n_derived in range(1, self.G.n_derived_subtended_by[node]+1):
+        for n_derived in range(1, self.G._n_derived_subtended_by[node]+1):
             for n_bottom in range(n_derived, n_leaves+1):
                 n_ancestral = n_bottom - n_derived
                 p_bottom = self.partial_likelihood_bottom(node, n_ancestral, n_derived)
@@ -112,7 +124,7 @@ class SumProduct_Chen(object):
         # if no derived leafs on right, add on term from the left
         c1, c2 = self.G[node]
         for child, other_child in ((c1, c2), (c2, c1)):
-            if self.G.n_derived_subtended_by[child] == 0:
+            if self.G._n_derived_subtended_by[child] == 0:
                 ret += self.joint_sfs(other_child)
         return ret
 
@@ -123,7 +135,7 @@ def attach_Chen(tree):
     if not hasattr(tree, "chen"):
         tree.chen = {}
         for node in tree:
-            size_model = tree.node_data[node]['model']
+            size_model = tree._node_data[node]['model']
             tree.chen[node] = SFS_Chen(size_model.N / 2.0, size_model.tau, tree.n_lineages_subtended_by[node])
 
 class SFS_Chen(object):

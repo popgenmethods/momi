@@ -7,8 +7,8 @@ import sqlite3
 import random
 import networkx as nx
 
-from momi import SumProduct, Demography
-from momi.huachen_eqs import SumProduct_Chen
+from momi import Demography
+from momi.huachen_eqs import Demography_Chen
 
 from collections import Counter, defaultdict
 import itertools
@@ -48,24 +48,22 @@ def time_runs(args):
     # Get a random phylogeny
     tree_str = random_binary_tree(n_taxa)
     tree = Demography.from_newick(tree_str, lineages_per_taxon)
-    #print tree.to_newick()
+    
     n = n_taxa * lineages_per_taxon
     results = []
     snp_list = run_simulation(tree, 100, lineages_per_taxon)
     for snp,state in enumerate(snp_list):
         #print(state)
         state_tuple = tuple([v['derived'] for k,v in sorted(state.iteritems())])
-        #print(state_tuple)
-        tree.update_state(state)
         rid = random.getrandbits(32)
 
-        sp_list = [("moran",SumProduct)]
+        method_list = [("moran",tree)]
         if not moranOnly:
-            sp_list += [("chen",SumProduct_Chen)]
-        for name,method in sp_list:
+            method_list += [("chen",Demography_Chen.from_newick(tree_str, lineages_per_taxon))]
+        for name,demo in method_list:
             #print(name)
             with Timer() as t:
-                ret = method(tree).p()
+                ret = demo.sfs(state)
             #print(ret)
             results.append((name,n_taxa, lineages_per_taxon, snp, t.interval, ret, rid, str(state_tuple), tree_str))
     return results
@@ -151,13 +149,13 @@ def build_command_line(demo, L, lineages_per_taxon):
         Iopts.append(nsamp)
         lineage_map[leaf_node] = i
         lineages += [leaf_node] * nsamp
-        age = demo.node_data[leaf_node]['model'].tau * tfac
+        age = demo._node_data[leaf_node]['model'].tau * tfac
 
         p, = demo.predecessors(leaf_node)
         while True:
             if p not in lineage_map:
                 lineage_map[p] = i
-                tau = demo.node_data[p]['model'].tau
+                tau = demo._node_data[p]['model'].tau
                 #if p.edge_length == float("inf"):
                 if tau == float('inf'):
                     break

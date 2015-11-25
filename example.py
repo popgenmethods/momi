@@ -1,6 +1,4 @@
-## import methods for demography, population size histories, and sum product algorithm
-
-from momi import Demography, PiecewiseHistory, ConstantTruncatedSizeHistory, ExponentialTruncatedSizeHistory, SumProduct
+from momi import Demography, ConstantTruncatedSizeHistory, ExponentialTruncatedSizeHistory, PiecewiseHistory
 
 ## First, let's compute the SFS for a single population with a three-epoch history
 
@@ -47,12 +45,11 @@ b:.3[&&momi:lineages=5:model=exponential:N_top=1.0:N_bottom=10.0]
 c:.3[&&momi:lineages=8:model=piecewise:model_0=exponential:tau_0=.2:N_top_0=.1:N_bottom_0=1.0:model_1=constant:tau_1=.1:N_1=.3]
 )[&&momi:N=3.0]
 """
+
 demo3 = Demography.from_newick(newick_str)
 
-demo3.update_state({'a': {'derived' : 1, 'ancestral': 9},
-                    'b': {'derived' : 3, 'ancestral' : 2},
-                    'c': {'derived' : 0, 'ancestral' : 8}})
-sp = SumProduct(demo3)
-
 print "\nSFS entry for (1,3,0) for 3-population demography"
-print sp.p()
+sfs_entry = demo3.sfs({'a': {'derived' : 1, 'ancestral': 9},
+                       'b': {'derived' : 3, 'ancestral' : 2},
+                       'c': {'derived' : 0, 'ancestral' : 8}} )
+print sfs_entry

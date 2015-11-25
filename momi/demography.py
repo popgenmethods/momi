@@ -4,6 +4,7 @@ from cStringIO import StringIO
 from util import cached_property
 from size_history import ConstantTruncatedSizeHistory, ExponentialTruncatedSizeHistory, PiecewiseHistory
 import numpy as np
+from sum_product import _SumProduct
 
 class Demography(nx.DiGraph):
     @classmethod
@@ -12,17 +13,25 @@ class Demography(nx.DiGraph):
         # add models to edges
         for v0, v1, d in t.edges(data=True):
             n_sub = t.n_lineages_subtended_by[v1]
-            nd = t.node_data[v1]
+            nd = t._node_data[v1]
             _set_model(nd, n_sub, d['branch_length'], default_N=default_N)
-        _set_model(t.node_data[t.root], t.n_lineages_subtended_by[t.root], float('inf'), default_N=default_N)
+        _set_model(t._node_data[t.root], t.n_lineages_subtended_by[t.root], float('inf'), default_N=default_N)
         return t
 
     def __init__(self, *args, **kwargs):
         super(Demography, self).__init__(*args, **kwargs)
-        nd = self.node_data
+        nd = self._node_data
         if not all('lineages' in nd[k] for k in self.leaves):
             raise Exception("'lineages' attribute must be set for each leaf node.")
 
+    def to_newick(self):
+        return _to_newick(self, self.root)
+
+    def sfs(self, state):
+        self._update_state(state)
+        sp = self._sum_product()
+        return sp.p()
+    
     @cached_property
     def root(self):
         nds = [node for node, deg in self.in_degree().items() if deg == 0]
@@ -30,32 +39,37 @@ class Demography(nx.DiGraph):
         return nds[0]
 
     @cached_property
-    def node_data(self):
-        return dict(self.nodes(data=True))
-
-    @cached_property
     def leaves(self):
         return set([k for k, v in self.out_degree().items() if v == 0])
-
-    @cached_property
-    def n_lineages_subtended_by(self):
-        nd = self.node_data
-        return {v: sum(nd[l]['lineages'] for l in self.leaves_subtended_by[v]) for v in self}
-
-    @cached_property
-    def n_derived_subtended_by(self):
-        nd = self.node_data
-        return {v: sum(nd[l]['derived'] for l in self.leaves_subtended_by[v]) for v in self}
-
-    @cached_property
-    def leaves_subtended_by(self):
-        return {v: self.leaves & set(nx.dfs_preorder_nodes(self, v)) for v in self}
 
     def is_leaf(self, node):
         return node in self.leaves
 
-    def update_state(self, state):
-        nd = self.node_data
+    @cached_property
+    def leaves_subtended_by(self):
+        return {v: self.leaves & set(nx.dfs_preorder_nodes(self, v)) for v in self}
+   
+    @cached_property
+    def n_lineages_subtended_by(self):
+        nd = self._node_data
+        return {v: sum(nd[l]['lineages'] for l in self.leaves_subtended_by[v]) for v in self}
+
+    ### "private" methods
+    
+    @cached_property
+    def _node_data(self):
+        return dict(self.nodes(data=True))
+   
+    @cached_property
+    def _n_derived_subtended_by(self):
+        nd = self._node_data
+        return {v: sum(nd[l]['derived'] for l in self.leaves_subtended_by[v]) for v in self}
+
+    def _sum_product(self):
+        return _SumProduct(self)
+    
+    def _update_state(self, state):
+        nd = self._node_data
         for node in state:
             ndn = nd[node]
             ndn.update(state[node])
@@ -63,13 +77,11 @@ class Demography(nx.DiGraph):
                 raise Exception("derived + ancestral must add to lineages at node %s" % node)
         # Invalidate the caches which depend on node state
         try:
-            del self.n_derived_subtended_by
-            del self.node_data
+            del self._n_derived_subtended_by
+            del self._node_data
         except AttributeError:
             pass
 
-    def to_newick(self):
-        return _to_newick(self, self.root)
 
 
 _field_factories = {

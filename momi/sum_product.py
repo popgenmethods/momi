@@ -5,7 +5,7 @@ import numpy as np
 
 from util import memoize_instance, memoize
 
-class SumProduct(object):
+class _SumProduct(object):
     '''
     compute joint SFS entry via a sum-product like algorithm,
     using Moran model to do transitions up the tree,
@@ -22,9 +22,9 @@ class SumProduct(object):
 
     @memoize_instance
     def leaf_likelihood_bottom(self, leaf):
-        n_node = self.G.node_data[leaf]['lineages']
+        n_node = self.G._node_data[leaf]['lineages']
         ret = np.zeros(n_node + 1)
-        ret[self.G.node_data[leaf]['derived']] = 1.0
+        ret[self.G._node_data[leaf]['derived']] = 1.0
         return ret
 
     def combinatorial_factors(self, node):
@@ -34,7 +34,7 @@ class SumProduct(object):
     @memoize_instance
     def truncated_sfs(self, node):
         n_node = self.G.n_lineages_subtended_by[node]
-        sfs = np.array([self.G.node_data[node]['model'].freq(n_derived, n_node) for n_derived in range(n_node + 1)])
+        sfs = np.array([self.G._node_data[node]['model'].freq(n_derived, n_node) for n_derived in range(n_node + 1)])
         sfs[sfs == float("inf")] = 0.0
         return sfs
 
@@ -45,7 +45,7 @@ class SumProduct(object):
         note n_top is fixed in Moran model, so P(n_top)=1
         '''
         bottom_likelihood = self.partial_likelihood_bottom(bottom)
-        return self.G.node_data[bottom]['model'].transition_prob(bottom_likelihood)
+        return self.G._node_data[bottom]['model'].transition_prob(bottom_likelihood)
 
     @memoize_instance
     def partial_likelihood_bottom(self, node):
@@ -67,7 +67,7 @@ class SumProduct(object):
     def joint_sfs(self, node):
         '''The joint SFS entry for the configuration under this node'''
         # if no derived leafs, return 0
-        if self.G.n_derived_subtended_by[node] == 0:
+        if self.G._n_derived_subtended_by[node] == 0:
             return 0.0
 
         # term for mutation occurring at this node
@@ -80,6 +80,6 @@ class SumProduct(object):
         # if no derived leafs on right, add on term from the left
         c1, c2 = self.G[node]
         for child, other_child in ((c1, c2), (c2, c1)):
-            if self.G.n_derived_subtended_by[child] == 0:
+            if self.G._n_derived_subtended_by[child] == 0:
                 ret += self.joint_sfs(other_child)
         return ret
