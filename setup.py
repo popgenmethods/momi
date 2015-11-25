@@ -10,5 +10,6 @@ setup(name='momi',
       packages=['momi'],      
       install_requires=['biopython','numpy','scipy','networkx'],
       url='https://github.com/jackkamm/momi',
+      download_url='https://github.com/jackkamm/momi/tarball/1.0',
       keywords=['population genetics','statistics','site frequency spectrum','coalescent'],      
       )
