@@ -1,4 +1,4 @@
-from demography import Demography
+from momi import Demography
 import pytest
 
 @pytest.fixture

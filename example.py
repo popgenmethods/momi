@@ -1,11 +1,6 @@
-## to run this file, you must either be in the momi directory, or put the momi directory in your PYTHONPATH,
-## e.g. to run this file (or another one using momi code), you can do
-## PYTHONPATH=$momi_dir python filename
+## import methods for demography, population size histories, and sum product algorithm
 
-from size_history import PiecewiseHistory, ConstantTruncatedSizeHistory, ExponentialTruncatedSizeHistory
-from demography import Demography
-from sum_product import SumProduct
-
+from momi import Demography, PiecewiseHistory, ConstantTruncatedSizeHistory, ExponentialTruncatedSizeHistory, SumProduct
 
 ## First, let's compute the SFS for a single population with a three-epoch history
 

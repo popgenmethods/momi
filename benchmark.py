@@ -7,9 +7,8 @@ import sqlite3
 import random
 import networkx as nx
 
-from sum_product import SumProduct
-from huachen_eqs import SumProduct_Chen
-from demography import Demography
+from momi import SumProduct, Demography
+from momi.huachen_eqs import SumProduct_Chen
 
 from collections import Counter, defaultdict
 import itertools

@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-import moran_model
+import momi.moran_model as moran_model
 
 def test_rate_matrix():
     n = 4
