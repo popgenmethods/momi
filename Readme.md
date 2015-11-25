@@ -30,10 +30,10 @@ The results from the paper are implemented in [benchmark.py](benchmark.py) and [
 
 ## Upcoming features
 
-The current version of momi is 0.1. Upcoming features for the next version (1.0) of momi are:
+The current version of momi is 1.0. Upcoming features for the next version (1.0) of momi are:
 * Pulse migration/admixture
 * Parameter inference via gradient descent, automatic differentiation
 * Improvements to user interface and computational efficiency
 
-Version 1.0 will be released late 2015 or early 2016, to be accompanied with a second paper.
+Version 2.0 will be released late 2015 or early 2016, to be accompanied with a second paper.
 Stay tuned!
