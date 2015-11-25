@@ -14,18 +14,15 @@ def do_runs(n_total_log2):
 cores = 20
 reps = 20
 
-for i in range(1,5):
+## runs comparing Moran vs coalescent approach
+for i in range(1, 9):
     do_runs(i)
 
-# ## runs comparing Moran vs coalescent approach
-# for i in range(1, 9):
-#     do_runs(i)
+## due to long running time of coalescent approach, rerun some of the jobs using only Moran model
+cores=5
+for n_demes in [32,64,128,256]:
+    n_per_deme = int(256/n_demes)
+    cmd = "./benchmark.py %d %d %d %d --moranOnly" % (n_demes, n_per_deme, reps, cores) 
+    out_file.write(cmd + "\n")
 
-# ## due to long running time of coalescent approach, rerun some of the jobs using only Moran model
-# cores=5
-# for n_demes in [32,64,128,256]:
-#     n_per_deme = int(256/n_demes)
-#     cmd = "./benchmark.py %d %d %d %d --moranOnly" % (n_demes, n_per_deme, reps, cores) 
-#     out_file.write(cmd + "\n")
-
-#     call(cmd, shell=True, stdout=out_file, stderr=out_file)
+    call(cmd, shell=True, stdout=out_file, stderr=out_file)
