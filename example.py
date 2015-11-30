@@ -60,9 +60,10 @@ print demo3.sfs(entry)
 ### For benchmarking in paper (see benchmark.py), we also implemented Hua Chen's formulas,
 ### but ONLY for the special case of constant population size along each branch.
 try:
+    # Demography.sfs(..., use_chen_eqs=True) to use Chen's formulas
     print demo3.sfs(entry, use_chen_eqs=True)
 except NotImplementedError:
-    ## Chen's formulas not implemented for demo3, due to changing size along branches
+    # Chen's formulas not implemented for demo3, due to changing size along branches
     pass
 
 
