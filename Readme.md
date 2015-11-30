@@ -21,13 +21,12 @@ Prerequisites:
 
 ## Getting started
 
-See [example.py](example.py) for an example of how to construct a population history and compute its SFS entries.
+See [tutorial.py](tutorial.py) to get started.
 
 The results from the paper are implemented in [benchmark.py](benchmark.py). To run [benchmark.py](benchmark.py) you will also need [ms](http://home.uchicago.edu/rhudson1/source/mksamples.html) or [scrm](https://scrm.github.io/), or similar program. Then to redo the results in the paper, type
 ```
 python benchmark.py /path/to/ms/or/scrm [--threads num_threads]
 ```
-
 
 ## Upcoming features
 
