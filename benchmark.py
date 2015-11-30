@@ -28,8 +28,7 @@ def main():
     args_list = []
 
     ## benchmarking for n=2,4,8,...,256 samples
-    #for n_total_log2 in range(1,9):
-    for n_total_log2 in range(1,4):
+    for n_total_log2 in range(1,9):
         ## samples come from D=1,2,4,...,n demes
         for n_demes_log2 in range(1, n_total_log2+1):
 
