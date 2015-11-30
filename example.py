@@ -49,9 +49,11 @@ c:.3[&&momi:lineages=8:model=piecewise:model_0=exponential:tau_0=.2:N_top_0=.1:N
 demo3 = Demography.from_newick(newick_str)
 
 print "\nSFS entry for (1,3,0) for 3-population demography"
+# configuration represented by a dict of dicts, with derived/ancestral alleles in each leaf population
 entry = {'a': {'derived' : 1, 'ancestral': 9},
          'b': {'derived' : 3, 'ancestral' : 2},
          'c': {'derived' : 0, 'ancestral' : 8}}
+# compute SFS with Demography.sfs() method
 print demo3.sfs(entry)
 
 
