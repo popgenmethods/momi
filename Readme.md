@@ -25,9 +25,8 @@ See [example.py](example.py) for an example of how to construct a population his
 
 The results from the paper are implemented in [benchmark.py](benchmark.py). To run [benchmark.py](benchmark.py) you will also need [ms](http://home.uchicago.edu/rhudson1/source/mksamples.html) or [scrm](https://scrm.github.io/), or similar program. Then to redo the results in the paper, type
 ```
-python benchmark.py /path/to/ms/or/scrm [--threads num_threads] [--reset]
+python benchmark.py /path/to/ms/or/scrm [--threads num_threads]
 ```
-where the optional arguments specify the number of parallel threads to use, and whether to reset the database of results (stored in benchmark_results.db).
 
 
 ## Upcoming features
