@@ -5,6 +5,7 @@ from util import cached_property
 from size_history import ConstantTruncatedSizeHistory, ExponentialTruncatedSizeHistory, PiecewiseHistory
 import numpy as np
 from sum_product import _SumProduct
+from huachen_eqs import _SumProduct_Chen
 
 class Demography(nx.DiGraph):
     @classmethod
@@ -27,9 +28,9 @@ class Demography(nx.DiGraph):
     def to_newick(self):
         return _to_newick(self, self.root)
 
-    def sfs(self, state):
+    def sfs(self, state, use_chen_eqs = False):
         self._update_state(state)
-        sp = self._sum_product()
+        sp = self._sum_product(use_chen_eqs)
         return sp.p()
     
     @cached_property
@@ -65,8 +66,11 @@ class Demography(nx.DiGraph):
         nd = self._node_data
         return {v: sum(nd[l]['derived'] for l in self.leaves_subtended_by[v]) for v in self}
 
-    def _sum_product(self):
-        return _SumProduct(self)
+    def _sum_product(self, use_chen_eqs):
+        if use_chen_eqs:
+            return _SumProduct_Chen(self)
+        else:
+            return _SumProduct(self)
     
     def _update_state(self, state):
         nd = self._node_data

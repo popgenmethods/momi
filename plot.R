@@ -4,7 +4,7 @@ library(data.table)
 library(reshape2)
 library(plyr)
 
-db <- dbConnect(SQLite(), ".bench.db")
+db <- dbConnect(SQLite(), "benchmark_results.db")
 dbq <- function(...) { dbGetQuery(db, ...) }
 dt <- data.table(dbq("select * from results"))
 
@@ -19,7 +19,7 @@ dt$model[dt$model == 'moran'] <- 'momi'
 dt$initial <- factor(dt$site == 0)
 levels(dt$initial) <- c("Per SNP", "Precomputation")
 
-rename(dt, c('model'='method'))
+dt <- rename(dt, c('model'='method'))
 
 dt.summary <- dt[, list(avg_t=mean(time),runs=length(time),negs=sum(result < 0,na.rm=TRUE),nans=sum(is.na(result))), by=list(method, n, D, initial)]
 

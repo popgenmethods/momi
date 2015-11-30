@@ -1,87 +1,84 @@
-#!/usr/bin/env python2.7
-import time
-import argparse
-from subprocess import check_output
-import os
-import sqlite3
-import random
+## usage: python benchmark.py /path/to/ms [--threads num_threads] [--reset]
+
+import argparse, time, subprocess, os, sqlite3, random, itertools
 import networkx as nx
-
-from momi import Demography
-from momi.huachen_eqs import Demography_Chen
-
-from collections import Counter, defaultdict
-import itertools
-
 import multiprocessing as mp
 import numpy as np
+from collections import Counter, defaultdict
 
-conn = sqlite3.connect('.bench.db')
+from momi import Demography
+
+## comand line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("ms", type=str, help="Path to ms/scrm")
+parser.add_argument("--threads", type=int, default=1, help="Number of parallel threads")
+parser.add_argument("--reset", action="store_true", help="Reset results database")
+
+## the sql database to store results
+conn = sqlite3.connect('benchmark_results.db')
 cur = conn.cursor()
 
+## number of repetitions for each sample size and number of demes
+reps = 20
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("n_taxa", type=int)
-    parser.add_argument("lineages_per_taxon", type=int)
-    parser.add_argument("reps", type=int)
-    parser.add_argument("cores", type=int)
-    parser.add_argument("--reset", action="store_true", help="Reset results database")
-    parser.add_argument("--moranOnly", action="store_true", help="Only do Moran SFS")
     args = parser.parse_args()
-    if args.reset:
-        cur.execute("drop table results")
-        create_table()
-    
-    if args.cores > 1:
-        pool = mp.Pool(processes=args.cores)
-        results_list = pool.map(time_runs, [(args.n_taxa,args.lineages_per_taxon,args.moranOnly)] * args.reps)
-    else:
-        results_list = map(time_runs, [(args.n_taxa,args.lineages_per_taxon,args.moranOnly)] * args.reps)
-    for results in results_list:
-        for entry in results:
-            store_result(*entry)
-    conn.commit()
-    conn.close()
+
+    ## arguments for time_runs() jobs
+    args_list = []
+
+    ## benchmarking for n=2,4,8,...,256 samples
+    #for n_total_log2 in range(1,9):
+    for n_total_log2 in range(1,4):
+        ## samples come from D=1,2,4,...,n demes
+        for n_demes_log2 in range(1, n_total_log2+1):
+
+            n_demes = 2**n_demes_log2
+            n_per_deme = 2**(n_total_log2 - n_demes_log2)
+
+            ## don't use coalescent for n>=256 and D>=32, due to long running time
+            moran_only = (n_total_log2 >= 8) and (n_demes >= 32)
+
+            args_list += [(args.ms, n_demes, n_per_deme, moran_only)] * reps
+
+    ## run the jobs
+    results_list = mp.Pool(processes=args.threads).map(time_runs, args_list)
+
+    ## store the results in sqlite
+    store_results_list(results_list, args.reset)
+
 
 def time_runs(args):
-    n_taxa, lineages_per_taxon, moranOnly = args
+    ms_path, n_taxa, lineages_per_taxon, moranOnly = args
+
+    print "# Starting job with n_per_deme=%d, n_demes=%d" % (lineages_per_taxon, n_taxa)
+
     # Get a random phylogeny
-    tree_str = random_binary_tree(n_taxa)
-    tree = Demography.from_newick(tree_str, lineages_per_taxon)
-    
+    newick_str = random_binary_tree(n_taxa)
+    demo = Demography.from_newick(newick_str, lineages_per_taxon)
+
     n = n_taxa * lineages_per_taxon
     results = []
-    snp_list = run_simulation(tree, 100, lineages_per_taxon)
+    snp_list = run_simulation(ms_path, demo, 100, lineages_per_taxon)
     for snp,state in enumerate(snp_list):
         #print(state)
         state_tuple = tuple([v['derived'] for k,v in sorted(state.iteritems())])
         rid = random.getrandbits(32)
 
-        method_list = [("moran",tree)]
+        method_list = [("moran",False)]
         if not moranOnly:
-            method_list += [("chen",Demography_Chen.from_newick(tree_str, lineages_per_taxon))]
-        for name,demo in method_list:
-            #print(name)
+            method_list += [("chen",True)]
+
+        for name,use_chen_eqs in method_list:
             with Timer() as t:
-                ret = demo.sfs(state)
-            #print(ret)
-            results.append((name,n_taxa, lineages_per_taxon, snp, t.interval, ret, rid, str(state_tuple), tree_str))
+                ret = demo.sfs(state, use_chen_eqs)
+            results.append((name,n_taxa, lineages_per_taxon, snp, t.interval, ret, rid, str(state_tuple), newick_str))
+
+    print "# Finished job with n_per_deme=%d, n_demes=%d" % (lineages_per_taxon, n_taxa)
     return results
 
-def create_table():
-    cur.execute("""create table results (model varchar, n integer, """
-                 """lineages integer, site integer, time real, result real, run_id integer, state varchar, tree varchar)""")
 
-def store_result(name, n, l, i, t, res, rid, state, tree):
-    cur.execute("insert into results values (?, ?, ?, ?, ?, ?, ?, ?, ?)", (name, n, l, i, t, res, rid, state, tree))
-
-try:
-    create_table()
-except sqlite3.OperationalError:
-    # conn.execute("delete from results)"
-    pass
-
-class Timer:    
+class Timer:
     def __enter__(self):
         self.start = time.clock()
         return self
@@ -90,6 +87,8 @@ class Timer:
         self.end = time.clock()
         self.interval = self.end - self.start
         #print('Call took %.03f sec.' % self.interval)
+
+## functions for generating a random binary tree demography
 
 def random_binary_tree(n):
     g = nx.DiGraph()
@@ -105,7 +104,7 @@ def random_binary_tree(n):
         lengths = {k: v + t for k, v in lengths.items()}
 
         g.add_edges_from([(int_node, c, {'edge_length': lengths[c]}) for c in coal])
-        
+
         lengths[int_node] = 0.0
 
         i += 1
@@ -132,14 +131,14 @@ def newick_helper(g, node):
             ret += ":%f" % el
         return ret
 
-SCRM_PATH = os.environ['SCRM_PATH']
+## functions for generating dataset with ms/scrm
 
-def build_command_line(demo, L, lineages_per_taxon):
-    '''Given a tree, build a scrm command line which will simulate from it.'''
+def build_command_line(ms_path, demo, L, lineages_per_taxon):
+    '''Given a tree, build a ms command line which will simulate from it.'''
     ejopts = []
     Iopts = []
-    
-    tfac = 0.5 
+
+    tfac = 0.5
     theta = 1.
 
     lineages = []
@@ -170,22 +169,29 @@ def build_command_line(demo, L, lineages_per_taxon):
     cmdline = ["-I %d %s" % (len(Iopts), " ".join(map(str, Iopts)))]
     for ej in ejopts:
         cmdline.append("-ej %g %d %d" % ej)
-    cmdline = ["%s %d 1 -t %g" % (SCRM_PATH, sum(Iopts), theta)] + cmdline
+    cmdline = ["%s %d 1 -t %g" % (ms_path, sum(Iopts), theta)] + cmdline
     #print(cmdline)
     return lineages, " ".join(cmdline)
 
-def run_simulation(tree, L, lineages_per_taxon):
-    lineages, cmd = build_command_line(tree, L, lineages_per_taxon)
+def run_simulation(ms_path, tree, L, lineages_per_taxon):
+    lineages, cmd = build_command_line(ms_path, tree, L, lineages_per_taxon)
     species = list(set(lineages))
     n_lineages = Counter(lineages)
 
+    try:
+        lines = subprocess.check_output(cmd.split())
+    except subprocess.CalledProcessError, e:
+        ## ms gives really weird error codes, so ignore them
+        lines = e.output
+    lines = lines.split("\n")
+
     #print(cmd)
-    output = [l.strip() for l in check_output(cmd, shell=True).split("\n")]
+    output = [l.strip() for l in lines]
     def f(x):
         if x == "//":
             f.i += 1
         return f.i
-    f.i = 0 
+    f.i = 0
     for k, lines in itertools.groupby(output, f):
         if k == 0:
             continue
@@ -200,10 +206,35 @@ def run_simulation(tree, L, lineages_per_taxon):
         for hap, lin in zip(lines, lineages):
             hap = list(map(int, hap))
             lin_counts[lin] += hap
-    return [{lin: {'derived':lin_counts[lin][i], 
+    return [{lin: {'derived':lin_counts[lin][i],
                    'ancestral':n_lineages[lin] - lin_counts[lin][i]}
              for lin in lineages}
             for i in range(segsites)]
-   
+
+### functions for manipulating the database of results (benchmark_results.db)
+
+def store_results_list(results_list, reset_db):
+    if reset_db:
+        cur.execute("drop table results")
+
+    try:
+        create_table()
+    except sqlite3.OperationalError:
+        pass
+
+    for results in results_list:
+        for entry in results:
+            store_result(*entry)
+    conn.commit()
+    conn.close()
+
+def create_table():
+    cur.execute("""create table results (model varchar, n integer, """
+                 """lineages integer, site integer, time real, result real, run_id integer, state varchar, tree varchar)""")
+
+def store_result(name, n, l, i, t, res, rid, state, tree):
+    cur.execute("insert into results values (?, ?, ?, ?, ?, ?, ?, ?, ?)", (name, n, l, i, t, res, rid, state, tree))
+
+
 if __name__=="__main__":
     main()

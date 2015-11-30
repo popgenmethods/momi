@@ -49,7 +49,18 @@ c:.3[&&momi:lineages=8:model=piecewise:model_0=exponential:tau_0=.2:N_top_0=.1:N
 demo3 = Demography.from_newick(newick_str)
 
 print "\nSFS entry for (1,3,0) for 3-population demography"
-sfs_entry = demo3.sfs({'a': {'derived' : 1, 'ancestral': 9},
-                       'b': {'derived' : 3, 'ancestral' : 2},
-                       'c': {'derived' : 0, 'ancestral' : 8}} )
-print sfs_entry
+entry = {'a': {'derived' : 1, 'ancestral': 9},
+         'b': {'derived' : 3, 'ancestral' : 2},
+         'c': {'derived' : 0, 'ancestral' : 8}}
+print demo3.sfs(entry)
+
+
+### For benchmarking in paper (see benchmark.py), we also implemented Hua Chen's formulas,
+### but ONLY for the special case of constant population size along each branch.
+try:
+    print demo3.sfs(entry, use_chen_eqs=True)
+except NotImplementedError:
+    ## Chen's formulas not implemented for demo3, due to changing size along branches
+    pass
+
+

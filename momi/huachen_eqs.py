@@ -5,7 +5,7 @@ import operator
 import math
 from util import memoize_instance
 import warnings
-from demography import Demography
+from size_history import ConstantTruncatedSizeHistory
 
 math_mod = math
 myint,myfloat = int,float
@@ -16,22 +16,10 @@ myint,myfloat = int,float
 # gmpy2.get_context().precision=100
 # myint,myfloat = gmpy2.mpz, gmpy2.mpfr
 
-
 '''
 Formulas from Hua Chen 2012, Theoretical Population Biology
 Note that for all formulas from that paper, N = diploid population size
 '''
-
-class Demography_Chen(Demography):
-    """
-    Modified Demography class, that computes SFS via Chen's formulas
-    NOTE we only implemented Chen's formulas for constant pop. size
-    """
-    def __init__(self, *args, **kwargs):
-        super(Demography_Chen,self).__init__(*args, **kwargs)
-        
-    def _sum_product(self):
-        return _SumProduct_Chen(self)
 
 class _SumProduct_Chen(object):
     ''' 
@@ -136,6 +124,8 @@ def attach_Chen(tree):
         tree.chen = {}
         for node in tree:
             size_model = tree._node_data[node]['model']
+            if type(size_model) is not ConstantTruncatedSizeHistory:
+                raise NotImplementedError("Hua Chen's equations only implemented for constant population size along each branch")
             tree.chen[node] = SFS_Chen(size_model.N / 2.0, size_model.tau, tree.n_lineages_subtended_by[node])
 
 class SFS_Chen(object):
