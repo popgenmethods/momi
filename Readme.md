@@ -10,9 +10,9 @@ approaches to computing the multipopulation SFS.
 
 ## Installation
 
-To install, in the top-level directory of momi (where "setup.py" lives), type
+To install, type
 ```
-pip install .
+pip install momi
 ```
 Prerequisites:
 * Scientific distribution of Python 2.7, e.g. [Anaconda](http://continuum.io/downloads), [Enthought Canopy](https://www.enthought.com/products/canopy/)
@@ -23,14 +23,15 @@ Prerequisites:
 
 See [tutorial.py](tutorial.py) to get started.
 
-The results from the paper are implemented in [benchmark.py](benchmark.py). To run [benchmark.py](benchmark.py) you will also need [ms](http://home.uchicago.edu/rhudson1/source/mksamples.html) or [scrm](https://scrm.github.io/), or similar program. Then to redo the results in the paper, type
+The results from the paper are implemented in [benchmark.py](benchmark.py), and plotted with [plot.R](plot.R). To run [benchmark.py](benchmark.py) you will also need [ms](http://home.uchicago.edu/rhudson1/source/mksamples.html) or [scrm](https://scrm.github.io/), or similar program. Then to redo the results in the paper, type
 ```
 python benchmark.py /path/to/ms/or/scrm [--threads num_threads]
+Rscript plot.R
 ```
 
 ## Upcoming features
 
-The current version of momi is 1.0. Upcoming features for the next version (2.0) of momi are:
+The current version of momi is 1.1. Upcoming features for the next version (2.0) of momi are:
 * Pulse migration/admixture
 * Parameter inference via gradient descent, automatic differentiation
 * Improvements to user interface and computational efficiency

@@ -17,13 +17,10 @@ print "Printing SFS entries for three epoch history"
 print [demo1.freq(i, n) for i in range(1,n)]
 
 
-## Next, print out the "truncated SFS" for just the two recent epochs
-## i.e., the frequency spectrum for mutations that occur within the two recent epochs
-epochs_trunc = epochs[:2]
-demo1_trunc = PiecewiseHistory(epochs_trunc)
-
-print "\nPrinting truncated SFS for two recent epochs"
-print [demo1_trunc.freq(i,n) for i in range(1,n)]
+## Next, print out the "truncated SFS" for just the middle epoch
+## i.e., the frequency spectrum for mutations that occur within the middle epoch
+print "\nPrinting truncated SFS for middle epoch"
+print [epochs[1].freq(i,n) for i in range(1,n)]
 
 
 ## Finally, let's compute SFS entries for a multipopulation demography
@@ -60,7 +57,7 @@ print demo3.sfs(entry)
 ### For benchmarking in paper (see benchmark.py), we also implemented Hua Chen's formulas,
 ### but ONLY for the special case of constant population size along each branch.
 try:
-    # Demography.sfs(..., use_chen_eqs=True) to use Chen's formulas
+    # set use_chen_eqs=True to use Chen's formulas
     print demo3.sfs(entry, use_chen_eqs=True)
 except NotImplementedError:
     # Chen's formulas not implemented for demo3, due to changing size along branches
