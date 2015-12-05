@@ -31,7 +31,7 @@ Rscript plot.R
 
 ## Upcoming features
 
-The current version of momi is 1.1. Upcoming features for the next version (2.0) of momi are:
+The current version of momi is 1.1.1. Upcoming features for the next version (2.0) of momi are:
 * Pulse migration/admixture
 * Parameter inference via gradient descent, automatic differentiation
 * Improvements to user interface and computational efficiency

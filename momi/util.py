@@ -2,6 +2,7 @@ import functools
 import numpy as np
 from functools import partial
 import itertools
+import scipy
 
 def grouper(n, iterable, fillvalue=None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
@@ -81,3 +82,74 @@ class memoize_instance(object):
         except KeyError:
             res = cache[key] = self.func(*args, **kw)
         return res
+
+### Math functions
+
+'''
+Returns
+-expi(-1/x) * exp(1/x) / x
+for x s.t. abs(x) is decreasing
+'''
+def transformed_expi(x):
+    abs_x = np.abs(x)
+    ser = abs_x < 1./45.
+    nser = np.logical_not(ser)
+
+    ret = np.zeros(x.shape)
+    ret[ser], ret[nser] = transformed_expi_series(x[ser]), transformed_expi_naive(x[nser])
+    return ret
+
+def transformed_expi_series(x):
+    c_n, ret = 1., 1.
+    for n in range(1,11):
+        c_n = -c_n * x * n
+        ret = ret + c_n
+    return ret
+
+def transformed_expi_naive(x):
+    return -scipy.special.expi(-1.0/x) * np.exp(1.0/x) / x
+
+
+'''
+returns (e^x-1)/x, for scalar x. works for x=0.
+Taylor series is 1 + x/2! + x^2/3! + ...
+'''
+def expm1d(x):
+    if x == 0.0:
+        return 1.0
+    elif x == float('inf'):
+        return float('inf')
+    return np.expm1(x)/x
+
+
+def check_probs_matrix(x):
+    x = truncate0(x)
+    rowsums = np.sum(x, axis=1)
+    assert np.allclose(rowsums,1.0)
+    return np.einsum('ij,i->ij',x,1.0/rowsums)
+
+
+def truncate0(x, axis=None, strict=False, tol=1e-13):
+    '''make sure everything in x is non-negative'''
+    # the maximum along axis
+    maxes = np.maximum(np.amax(x, axis=axis), 1e-300)
+    # the negative part of minimum along axis
+    mins = np.maximum(-np.amin(x,axis=axis), 0.0)
+
+    # assert the negative numbers are small (relative to maxes)
+    assert np.all(mins <= tol * maxes)
+
+    if axis is not None:
+        idx = [slice(None)] * x.ndim
+        idx[axis] = np.newaxis
+        mins = mins[idx]
+        maxes = maxes[idx]
+
+    if strict:
+        # set everything below the tolerance to 0
+        x[x < tol * maxes] = 0
+        return x
+    else:
+        # set everything of same magnitude as most negative number, to 0
+        x[x < 2*mins] = 0
+        return x

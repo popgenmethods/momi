@@ -1,10 +1,12 @@
 from __future__ import division
-from util import EPSILON, memoize
-from math import exp, fsum, log, expm1
+from util import EPSILON, memoize, transformed_expi, expm1d, check_probs_matrix
+from math import fsum
+from numpy import exp, log, expm1, dot, diag
 from util import cached_property
 import numpy as np
 import scipy.integrate
 from scipy.special import comb as binom
+import scipy as sp
 
 import moran_model
 
@@ -69,8 +71,14 @@ class TruncatedSizeHistory(object):
         # TODO: add assertion back in
         return ret
 
+    @cached_property
+    def transition_matrix(self):
+        P,d,Pinv = moran_model.moran_eigensystem(self.n_max)
+        D = diag(exp(self.scaled_time * d))
+        return check_probs_matrix(dot(P,dot(D,Pinv)))
+
     def transition_prob(self, v):
-        return moran_model.moran_action(self.scaled_time, v)
+        return dot(self.transition_matrix, v)
 
 
 class ConstantTruncatedSizeHistory(TruncatedSizeHistory):
@@ -141,20 +149,26 @@ class ExponentialTruncatedSizeHistory(TruncatedSizeHistory):
         self.N_top, self.N_bottom = N_top, N_bottom
         # N_bottom = N_top * exp(tau * growth_rate)
         self.growth_rate = log(N_bottom / N_top) / tau
+
         super(ExponentialTruncatedSizeHistory, self).__init__(n_max, tau)
 
     @cached_property
     def etjj(self):
-        j = np.arange(2, self.n_max+1)
-        ret = scipy.special.expi(- scipy.misc.comb(j,2) / self.N_bottom * np.exp(self.growth_rate * self.tau) / self.growth_rate)
-        ret = ret - scipy.special.expi(- scipy.misc.comb(j,2) / self.N_bottom / self.growth_rate)
-        ret = ret * (1.0 / self.growth_rate * np.exp(1.0 / self.growth_rate * scipy.misc.comb(j,2) / self.N_bottom))
+        n = self.n_max
+        total_growth = log(self.N_bottom / self.N_top)
+        _r = self.growth_rate * 2.0
+        _tau = self.tau / 2.0
 
-        assert np.all(np.ediff1d(ret) <= 0) # ret should be decreasing
-        assert np.all(ret >= 0)
-        assert np.all(ret <= self.tau)
+        j = np.arange(2, n+1)
+        jChoose2 = binom(j,2)
 
-        return ret
+        pow0, pow1 = self.N_bottom/jChoose2/2.0 , total_growth
+        ret = -transformed_expi(pow0 * _r / exp(pow1))
+        ret = ret * exp(-expm1d(pow1) * _tau / pow0 - pow1)
+        ret = ret + transformed_expi(pow0 * _r)
+        ret = ret * pow0
+
+        return 2*ret
 
     @cached_property
     def scaled_time(self):

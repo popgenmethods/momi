@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='momi',
-      version='1.1',
+      version='1.1.1',
       description='Compute the site frequency spectrum (SFS) of population genetics',
       author='Jack Kamm, Jonathan Terhorst, Yun S. Song',
       author_email='jkamm@stat.berkeley.edu, terhorst@stat.berkeley.edu, yss@eecs.berkeley.edu',
