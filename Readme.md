@@ -23,11 +23,7 @@ Prerequisites:
 
 See [tutorial.py](tutorial.py) to get started.
 
-The results from the paper are implemented in [benchmark.py](benchmark.py), and plotted with [plot.R](plot.R). To run [benchmark.py](benchmark.py) you will also need [ms](http://home.uchicago.edu/rhudson1/source/mksamples.html) or [scrm](https://scrm.github.io/), or similar program. Then to redo the results in the paper, type
-```
-python benchmark.py /path/to/ms/or/scrm [--threads num_threads]
-Rscript plot.R
-```
+The results from the paper are implemented in [paper_results/compare_chen/benchmark.py](paper_results/compare_chen/benchmark.py).
 
 ## Upcoming features
 
