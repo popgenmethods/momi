@@ -6,6 +6,8 @@ import math
 from util import memoize_instance
 import warnings
 from size_history import ConstantTruncatedSizeHistory
+import numpy as np
+from convolution_momi import convolve_chen
 
 math_mod = math
 myint,myfloat = int,float
@@ -22,99 +24,56 @@ Note that for all formulas from that paper, N = diploid population size
 '''
 
 class _SumProduct_Chen(object):
-    ''' 
+    '''
     compute sfs of data via Hua Chen's sum-product algorithm
     '''
     def __init__(self, demography):
         self.G = demography
         attach_Chen(self.G)
-    
+
     def p(self):
         '''Return the likelihood for the data'''
-        return self.joint_sfs(self.G.root)
+        return self.partial_likelihood_bottom(self.G.root)[1]
 
-    @memoize_instance
-    def partial_likelihood_top(self, node, n_ancestral_top, n_derived_top):
-        n_top = n_derived_top + n_ancestral_top
-        n_leaves = self.G.n_lineages_subtended_by[node]
-        ret = 0.0
+    def partial_likelihood_top(self, node):
+        lik, sfs = self.partial_likelihood_bottom(node)
+        return self.G.chen[node].apply_transition(lik), sfs
 
-        for n_bottom in range(n_top,n_leaves+1):
-            for n_derived_bottom in range(n_derived_top, self.G._n_derived_subtended_by[node]+1):
-                n_ancestral_bottom = n_bottom - n_derived_bottom
-
-                if n_derived_bottom > 0 and n_derived_top == 0:
-                    continue
-
-                p_bottom = self.partial_likelihood_bottom(node, n_ancestral_bottom, n_derived_bottom)
-                if p_bottom == 0.0:
-                    continue
-                p_top = p_bottom * self.G.chen[node].g(n_bottom,n_top)
-
-                p_top *= math.exp(log_urn_prob(
-                        n_derived_top,
-                        n_ancestral_top,
-                        n_derived_bottom, 
-                        n_ancestral_bottom))
-                ret += p_top
-        return ret
-
-    @memoize_instance
-    def partial_likelihood_bottom(self, node, n_ancestral, n_derived):
-        '''Likelihood of data given alleles (state) at bottom of node.'''
-        # Leaf nodes are "clamped"
+    def partial_likelihood_bottom(self, node):
+        sfs = 0.0
         if self.G.is_leaf(node):
-            if n_ancestral + n_derived == self.G.n_lineages_subtended_by[node] and n_derived == self.G._n_derived_subtended_by[node]:
-                return 1.0
-            else:
-                return 0.0
-        # Sum over allocation of lineages to left and right branch
-        # Left branch gets between 1 and (total - 1) lineages
-        ret = 0.0
-        total_lineages = n_ancestral + n_derived
+            n = self.G.n_lineages_subtended_by[node]
+            n_der = self.G._n_derived_subtended_by[node]
+            lik = np.zeros((len(n_der), n+1, n+1))
+            lik[range(len(n_der)), n-n_der, n_der] = 1.0
+        else:
+            children = tuple(self.G[node])
+            ch_liks, ch_sfs = zip(*[self.partial_likelihood_top(ch)
+                                    for ch in children])
+            ch_liks = [l * self.combinatorial_factors(ch)
+                       for l,ch in zip(ch_liks, children)]
+            lik = convolve_chen(*ch_liks) / self.combinatorial_factors(node)
 
-        left_node,right_node = self.G[node]
+            for ch1, ch2 in ((0,1),(1,0)):
+                sfs += ch_sfs[ch1] * (self.G._n_derived_subtended_by[children[ch2]] == 0)
+        sfs += (lik * self.truncated_sfs(node)).sum(axis=(1,2))
+        return lik,sfs
 
-        n_leaves_l = self.G.n_lineages_subtended_by[left_node]
-        n_leaves_r = self.G.n_lineages_subtended_by[right_node]
-        for n_ancestral_l in range(n_ancestral + 1):
-            n_ancestral_r = n_ancestral - n_ancestral_l
-            # Sum over allocation of derived alleles to left, right branches
-            for n_derived_l in range(n_derived + 1):
-                n_derived_r = n_derived - n_derived_l
-                n_left = n_ancestral_l + n_derived_l
-                n_right = n_ancestral_r + n_derived_r
-                if any([n_right == 0, n_right > n_leaves_r, n_left==0, n_left > n_leaves_l]):
-                    continue
-                p = math.exp(log_binom(n_ancestral, n_ancestral_l) + 
-                         log_binom(n_derived, n_derived_l) - 
-                         log_binom(total_lineages, n_ancestral_l + n_derived_l))
-                assert p != 0.0
-                for args in ((right_node, n_ancestral_r, n_derived_r), (left_node, n_ancestral_l, n_derived_l)):
-                    p *= self.partial_likelihood_top(*args)
-                ret += p
-        return ret
+    def combinatorial_factors(self, node):
+        n_node = self.G.n_lineages_subtended_by[node]
 
-    @memoize_instance
-    def joint_sfs(self, node):
-        n_leaves = self.G.n_lineages_subtended_by[node]
-        ret = 0.0
-        for n_derived in range(1, self.G._n_derived_subtended_by[node]+1):
-            for n_bottom in range(n_derived, n_leaves+1):
-                n_ancestral = n_bottom - n_derived
-                p_bottom = self.partial_likelihood_bottom(node, n_ancestral, n_derived)
-                ret += p_bottom * self.G.chen[node].truncated_sfs(n_derived, n_bottom)
+        n_der = np.outer(np.ones(n_node+1), np.arange(n_node+1))
+        n_anc = np.outer(np.arange(n_node+1), np.ones(n_node+1))
 
-        if self.G.is_leaf(node):
-            return ret
+        return scipy.misc.comb(n_der + n_anc, n_der)
 
-        # add on terms for mutation occurring below this node
-        # if no derived leafs on right, add on term from the left
-        c1, c2 = self.G[node]
-        for child, other_child in ((c1, c2), (c2, c1)):
-            if self.G._n_derived_subtended_by[child] == 0:
-                ret += self.joint_sfs(other_child)
-        return ret
+    def truncated_sfs(self, node):
+        n_node = self.G.n_lineages_subtended_by[node]
+        sfs = np.zeros((n_node+1,n_node+1))
+        for n_der in range(1,n_node+1):
+            for n_anc in range(n_node-n_der+1):
+                sfs[n_anc,n_der] = self.G.chen[node].freq(n_der, n_der+n_anc)
+        return sfs
 
 
 def attach_Chen(tree):
@@ -132,21 +91,21 @@ class SFS_Chen(object):
     def __init__(self, N_diploid, timeLen, max_n):
         self.timeLen = timeLen
         self.N_diploid = N_diploid
+        self.max_n = max_n
         # precompute
         for n in range(1,max_n+1):
             for i in range(1,n+1):
-                self.truncated_sfs(i,n)
-                
+                self.freq(i,n)
+
             max_m = n
             if timeLen == float('inf'):
                 max_m = 1
             for m in range(1,max_m+1):
                 self.g(n,m)
-            
-    @memoize_instance    
+
+    @memoize_instance
     def g(self, n, m):
         return g(n, m, self.N_diploid, self.timeLen)
-
 
     @memoize_instance
     def ET(self, i, n, m):
@@ -156,23 +115,70 @@ class SFS_Chen(object):
             warnings.warn("divide by zero in hua chen formula")
             return 0.0
 
-    @memoize_instance    
+    @memoize_instance
     def ES_i(self, i, n, m):
         '''TPB equation 4'''
         assert n >= m
         return math.fsum([p_n_k(i, n, k) * k * self.ET(k, n, m) for k in range(m, n + 1)])
 
     @memoize_instance
-    def truncated_sfs(self, i, n):
+    def freq(self, i, n):
         max_m = n-i+1
         if self.timeLen == float('inf'):
             max_m = 1
-            
+
         ret = 0.0
         for m in range(1,max_m+1):
             ret += self.ES_i(i, n, m)
         return ret
-        
+
+    def apply_transition(self, likelihoods):
+        ## einsum should be faster, but causes memory overflow for our machines/tests
+        # return np.einsum('ijkl,mij->mkl',
+        #                  self.transition_tensor(),
+        #                  likelihoods)
+        ## just use for loops
+        n = likelihoods.shape[-1]-1
+        assert likelihoods.shape[1:] == (n+1,n+1)
+        ret = np.zeros(likelihoods.shape)
+        for n_top in range(1,n+1):
+            for n_bottom in range(n_top,n+1):
+                for n_derived_bottom in range(n_bottom+1):
+                    for n_derived_top in range(n_derived_bottom+1):
+                        n_ancestral_bottom = n_bottom - n_derived_bottom
+                        n_ancestral_top = n_top - n_derived_top
+
+                        tmp = np.array(likelihoods[:,n_ancestral_bottom,n_derived_bottom])
+                        tmp *= self.g(n_bottom,
+                                      n_top) * math.exp(log_urn_prob(n_derived_top,
+                                                                     n_ancestral_top,
+                                                                     n_derived_bottom,
+                                                                     n_ancestral_bottom))
+
+                        ret[:,n_ancestral_top,n_derived_top] += tmp
+        return ret
+
+    @memoize_instance
+    def transition_tensor(self):
+        n = self.max_n
+
+        ret = np.zeros((n+1,n+1,n+1,n+1))
+        for n_top in range(1,n+1):
+            for n_bottom in range(n_top,n+1):
+                for n_derived_bottom in range(n_bottom+1):
+                    for n_derived_top in range(n_derived_bottom+1):
+                        n_ancestral_bottom = n_bottom - n_derived_bottom
+                        n_ancestral_top = n_top - n_derived_top
+                        ret[n_ancestral_bottom,
+                            n_derived_bottom,
+                            n_ancestral_top,
+                            n_derived_top] = self.g(n_bottom,
+                                                    n_top) * math.exp(log_urn_prob(n_derived_top,
+                                                                                   n_ancestral_top,
+                                                                                   n_derived_bottom,
+                                                                                   n_ancestral_bottom))
+        return ret
+
 
 def log_factorial(n):
     return math_mod.lgamma(n+1)
@@ -188,7 +194,7 @@ def gcoef(k, n, m, N_diploid, tau):
     N_diploid = myfloat(N_diploid)
     tau = myfloat(tau)
     return (2*k - 1) * (-1)**(k - m) * math_mod.exp(log_rising(m, k-1) + log_falling(n, k) - log_factorial(m) - log_factorial(k - m) - log_rising(n, k))
-    #return (2*k - 1) * (-1)**(k - m) * rising(m, k-1) * falling(n, k) / math_mod.factorial(m) / math_mod.factorial(k - m) / rising(n, k) 
+    #return (2*k - 1) * (-1)**(k - m) * rising(m, k-1) * falling(n, k) / math_mod.factorial(m) / math_mod.factorial(k - m) / rising(n, k)
 
 
 def g_sum(n, m, N_diploid, tau):
@@ -205,7 +211,7 @@ g = g_sum
 def formula1(n, m, N_diploid, tau):
     def expC2(k):
         return math_mod.exp(-k * (k - 1) / 4 / N_diploid * tau)
-    r = sum(gcoef(k, n, m, N_diploid, tau) * 
+    r = sum(gcoef(k, n, m, N_diploid, tau) *
             ((expC2(m) - expC2(k)) / (k - m) / (k + m - 1) - (tau / 4 / N_diploid * expC2(m)))
             for k in range(m + 1, n + 1))
     #q = 4 * N_diploid / g(n, m, N_diploid, tau)
@@ -219,7 +225,7 @@ def formula3(j, n, m, N_diploid, tau):
     tau, N_diploid = map(myfloat, [tau, N_diploid])
     def expC2(kk):
         return math_mod.exp(-kk * (kk - 1) / 4 / N_diploid * tau)
-    r = sum(gcoef(k, n, j, N_diploid, tau) * # was gcoef(k, n, j + 1, N_diploid, tau) * 
+    r = sum(gcoef(k, n, j, N_diploid, tau) * # was gcoef(k, n, j + 1, N_diploid, tau) *
             sum(gcoef(ell, j, m, N_diploid, tau) * ( # was gcoef(ell, j - 1, m, N_diploid, tau) * (
                     (
                         expC2(j) * (tau / 4 / N_diploid - ((k - j) * (k + j - 1) + (ell - j)*(ell + j - 1)) / # tau / 4 / N_diploid was 1 in this
@@ -245,7 +251,7 @@ def formula3(j, n, m, N_diploid, tau):
 def formula2(n, m, N_diploid, tau):
     def expC2(k):
         return math_mod.exp(-k * (k - 1) / 4 / N_diploid * tau)
-    r = sum(gcoef(k, n, m, N_diploid, tau) * 
+    r = sum(gcoef(k, n, m, N_diploid, tau) *
             ((expC2(k) - expC2(n)) / (n - k) / (n + k - 1) - (tau / 4 / N_diploid * expC2(n)))
             for k in range(m, n))
     #q = 4 * N_diploid / g(n, m, N_diploid, tau)

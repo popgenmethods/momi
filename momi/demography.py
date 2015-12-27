@@ -28,11 +28,33 @@ class Demography(nx.DiGraph):
     def to_newick(self):
         return _to_newick(self, self.root)
 
-    def sfs(self, state, use_chen_eqs = False):
-        self._update_state(state)
+    def compute_sfs(self, config_list, use_chen_eqs = False):
+        if not all([set(c.keys()) == self.leaves for c in config_list]):
+            raise Exception("Derived allele counts should be specified at all leafs, and no other vertices")
+
+        config_list = {l: np.array([c[l] for c in config_list], dtype=np.int) for l in self.leaves}
+
+        if any([np.any(d * (self.n_lineages_subtended_by[l] - d) < 0) for l,d in config_list.iteritems()]):
+            raise Exception("Derived allele counts should all be between 0 and n")
+
+        sum_d = np.sum(list(config_list.values()), axis=0)
+        sum_n = sum([self.n_lineages_subtended_by[l]
+                     for l in self.leaves])
+        if np.any(sum_d * (sum_n - sum_d) == 0):
+            raise Exception("Sites with all ancestral or all derived alleles are not allowed")
+
+        self._n_derived_subtended_by = {v: np.sum([config_list[l] for l in self.leaves_subtended_by[v]], axis=0) for v in self}
+
         sp = self._sum_product(use_chen_eqs)
         return sp.p()
-    
+
+    def sfs(self, state, use_chen_eqs = False):
+        """Deprecated, use compute_sfs instead"""
+        if any([v['derived'] + v['ancestral'] != self.n_lineages_subtended_by[k] for k,v in state.iteritems()]):
+            raise Exception("Sum of ancestral, derived alleles must be n")
+        config_list = [{k: v['derived'] for k,v in state.iteritems()}]
+        return self.compute_sfs(config_list, use_chen_eqs=use_chen_eqs)
+
     @cached_property
     def root(self):
         nds = [node for node, deg in self.in_degree().items() if deg == 0]
@@ -49,43 +71,23 @@ class Demography(nx.DiGraph):
     @cached_property
     def leaves_subtended_by(self):
         return {v: self.leaves & set(nx.dfs_preorder_nodes(self, v)) for v in self}
-   
+
     @cached_property
     def n_lineages_subtended_by(self):
         nd = self._node_data
         return {v: sum(nd[l]['lineages'] for l in self.leaves_subtended_by[v]) for v in self}
 
     ### "private" methods
-    
+
     @cached_property
     def _node_data(self):
         return dict(self.nodes(data=True))
-   
-    @cached_property
-    def _n_derived_subtended_by(self):
-        nd = self._node_data
-        return {v: sum(nd[l]['derived'] for l in self.leaves_subtended_by[v]) for v in self}
 
     def _sum_product(self, use_chen_eqs):
         if use_chen_eqs:
             return _SumProduct_Chen(self)
         else:
             return _SumProduct(self)
-    
-    def _update_state(self, state):
-        nd = self._node_data
-        for node in state:
-            ndn = nd[node]
-            ndn.update(state[node])
-            if ndn['lineages'] != ndn['derived'] + ndn['ancestral']:
-                raise Exception("derived + ancestral must add to lineages at node %s" % node)
-        # Invalidate the caches which depend on node state
-        try:
-            del self._n_derived_subtended_by
-            del self._node_data
-        except AttributeError:
-            pass
-
 
 
 _field_factories = {

@@ -3,7 +3,8 @@
 description = """
 Generate and plot the figures in the paper, comparing accuracy and speed of momi vs. algorithm of Chen 2012.
 """
-import argparse, time, subprocess, os, random, itertools
+
+import argparse, time, subprocess, os, random, itertools, re
 import networkx as nx
 import multiprocessing as mp
 import numpy as np
@@ -24,6 +25,8 @@ parser.add_argument("--threads", type=int, default=1,
 
 ## number of repetitions for each sample size and number of demes
 reps = 20
+loci_per_rep = 100
+theta_per_locus = 1.0
 
 def main():
     args = parser.parse_args()
@@ -36,19 +39,8 @@ def main():
     print "Plotting results with %s" % r_file
     with file(results_file,'r') as f:
         results_list = pickle.load(f)
-    p = subprocess.Popen(["R","CMD","BATCH",r_file], stdin=subprocess.PIPE)
-    p.communicate(output_table(results_list))
-
-
-def output_table(results_list):
-    ret = ""
-    ret += "\t".join(["method","n_per_pop","D","site","time","result","run_id","state","demography"])
-
-    for job_result in results_list:
-        for method,site,t,res,rid,state in job_result['snp_results']:
-            ret += "\n" + "\t".join(map(str,[method, job_result['n_per_pop'], job_result['n_pops'], site, t, res, rid, state, job_result['newick_str']]))
-    return ret
-
+    plot_accuracy(results_list)
+    plot_times(results_list)
 
 def run_benchmarks(ms_path, n_threads):
     ## arguments for time_runs() jobs
@@ -64,7 +56,7 @@ def run_benchmarks(ms_path, n_threads):
             ## don't use coalescent for n>=256 and D>=32, due to long running time
             moran_only = (n_total_log2 >= 8) and (n_demes >= 32)
 
-            jobs_list += [(ms_path, n_demes, n_per_deme, moran_only)] * reps
+            jobs_list += [(ms_path, n_demes, n_per_deme, moran_only, random.randint(0,999999999))] * reps
 
     ## run the jobs
     results_list = mp.Pool(processes=n_threads).map(do_job, jobs_list, chunksize=1)
@@ -74,33 +66,40 @@ def run_benchmarks(ms_path, n_threads):
         pickle.dump(results_list, f)
 
 
-def do_job((ms_path, n_demes, lineages_per_deme, moranOnly)):
-    print "# Starting job with n_per_deme=%d, n_demes=%d" % (lineages_per_deme, n_demes)
+def do_job((ms_path, n_demes, n_per_pop, moranOnly, seed)):
+    print "# Starting job with n_per_deme=%d, n_demes=%d" % (n_per_pop, n_demes)
+
+    random.seed(seed)
 
     # Get a random phylogeny
     newick_str = random_binary_tree(n_demes)
-    demo = Demography.from_newick(newick_str, lineages_per_deme)
+    demo = Demography.from_newick(newick_str, n_per_pop)
 
-    n = n_demes * lineages_per_deme
-    results = []
-    snp_list = run_simulation(ms_path, demo, 100, lineages_per_deme)
-    for snp,state in enumerate(snp_list):
-        #print(state)
-        state_tuple = tuple([v['derived'] for k,v in sorted(state.iteritems())])
-        rid = random.getrandbits(32)
+    n = n_demes * n_per_pop
+    snp_list = run_simulation(ms_path, demo, loci_per_rep, n_per_pop)
+    snp_list = [{pop: counts['derived'] for pop,counts in snp.iteritems()}
+                for snp in snp_list]
 
-        method_list = [("moran",False)]
-        if not moranOnly:
-            method_list += [("chen",True)]
+    # only keep unique snps
+    snp_list = set([snp.iteritems() for snp in snp_list])
+    snp_list = map(dict, snp_list)
 
-        for name,use_chen_eqs in method_list:
-            with Timer() as t:
-                ret = demo.sfs(state, use_chen_eqs)
-            results.append((name, snp, t.interval, ret, rid, ",".join(map(str,state_tuple))))
+    method_list = [("momi",False)]
+    if not moranOnly:
+        method_list += [("Chen",True)]
 
-    print "# Finished job with n_per_deme=%d, n_demes=%d" % (lineages_per_deme, n_demes)
-    return {'n_pops' : n_demes, 'n_per_pop' : lineages_per_deme, 'newick_str' : newick_str, 'snp_results': results}
+    results = {}
+    for name,use_chen_eqs in method_list:
+        with Timer() as t:
+            demo.compute_sfs([snp_list[0]], use_chen_eqs)
+        precompute_t = t.interval
 
+        with Timer() as t:
+            results[name] = {'sfs': demo.compute_sfs(snp_list, use_chen_eqs)}
+        results[name].update({'timing': {"'Per SNP'" : t.interval / float(len(snp_list)), "'Precomputation'" : precompute_t}})
+
+    print "# Finished job with n_per_deme=%d, n_demes=%d" % (n_per_pop, n_demes)
+    return {'n': n_demes * n_per_pop, 'n_pops' : n_demes, 'results': results, 'seed' : seed}
 
 class Timer:
     def __enter__(self):
@@ -111,6 +110,37 @@ class Timer:
         self.end = time.clock()
         self.interval = self.end - self.start
         #print('Call took %.03f sec.' % self.interval)
+
+
+## functions for plotting
+
+def plot_times(results_list):
+    dataframe = ""
+    dataframe += "\t".join(["method","n","D","component","time"])
+    for job_result in results_list:
+        for method, res in job_result['results'].iteritems():
+            for component, time in res['timing'].iteritems():
+                dataframe += "\n" + "\t".join(map(str,[method, job_result['n'], job_result['n_pops'], component, time]))
+
+    p = subprocess.Popen(["Rscript",r_file,'timing'], stdin=subprocess.PIPE)
+    p.communicate(dataframe)
+
+def plot_accuracy(results_list):
+    dataframe = ""
+    dataframe += "\t".join(["n","D","momi","Chen"])
+    for res in results_list:
+        n,D = res['n'],res['n_pops']
+        res = res['results']
+        try:
+            momi, chen = res['momi']['sfs'], res['Chen']['sfs']
+        except KeyError:
+            continue
+        assert len(momi) == len(chen)
+        for m,c in zip(momi,chen):
+            dataframe += "\n" + "\t".join(map(str, [n,D,m,c]))
+    p = subprocess.Popen(["Rscript",r_file,'accuracy'], stdin=subprocess.PIPE)
+    p.communicate(dataframe)
+
 
 ## functions for generating a random binary tree demography
 
@@ -157,21 +187,20 @@ def newick_helper(g, node):
 
 ## functions for generating dataset with ms/scrm
 
-def build_command_line(ms_path, demo, L, lineages_per_deme):
+def build_command_line(ms_path, demo, L, n_per_pop):
     '''Given a tree, build a ms command line which will simulate from it.'''
     ejopts = []
     Iopts = []
 
     tfac = 0.5
-    theta = 1.
 
-    lineages = []
+    haps2pops = []
     lineage_map = {}
     for i, leaf_node in list(enumerate(sorted(demo.leaves), 1)):
-        nsamp = lineages_per_deme
+        nsamp = n_per_pop
         Iopts.append(nsamp)
         lineage_map[leaf_node] = i
-        lineages += [leaf_node] * nsamp
+        haps2pops += [leaf_node] * nsamp
         age = demo._node_data[leaf_node]['model'].tau * tfac
 
         p, = demo.predecessors(leaf_node)
@@ -193,47 +222,39 @@ def build_command_line(ms_path, demo, L, lineages_per_deme):
     cmdline = ["-I %d %s" % (len(Iopts), " ".join(map(str, Iopts)))]
     for ej in ejopts:
         cmdline.append("-ej %g %d %d" % ej)
-    cmdline = ["%s %d 1 -t %g" % (ms_path, sum(Iopts), theta)] + cmdline
+    cmdline = ["%s %d %d -t %g" % (ms_path, sum(Iopts), L, theta_per_locus)] + cmdline
     #print(cmdline)
-    return lineages, " ".join(cmdline)
+    cmdline += ['-seeds'] + [str(random.randint(0,999999999)) for _ in range(3)]
+    return haps2pops, " ".join(cmdline)
 
-def run_simulation(ms_path, tree, L, lineages_per_deme):
-    lineages, cmd = build_command_line(ms_path, tree, L, lineages_per_deme)
-    species = list(set(lineages))
-    n_lineages = Counter(lineages)
+def run_simulation(ms_path, tree, L, n_per_pop):
+    haps2pops, cmd = build_command_line(ms_path, tree, L, n_per_pop)
 
     try:
         lines = subprocess.check_output(cmd.split())
     except subprocess.CalledProcessError, e:
         ## ms gives really weird error codes, so ignore them
         lines = e.output
-    lines = lines.split("\n")
 
-    #print(cmd)
-    output = [l.strip() for l in lines]
-    def f(x):
-        if x == "//":
-            f.i += 1
-        return f.i
-    f.i = 0
-    for k, lines in itertools.groupby(output, f):
-        if k == 0:
-            continue
-        # Skip preamble
-        next(lines)
-        # segsites
-        segsites = int(next(lines).split(" ")[1])
-        # positions
-        next(lines)
-        # at haplotypes
-        lin_counts = defaultdict(lambda: np.zeros(segsites, dtype=int))
-        for hap, lin in zip(lines, lineages):
+    lines_by_rep = lines.split("\n//\n")[1:]
+
+    ret = []
+    for lines in lines_by_rep:
+        lines = [l.strip() for l in lines.split("\n") if l.strip() != ""]
+        segsites = int(re.match("segsites: (\d+)", lines[0]).group(1))
+
+        assert segsites == 0 or len(lines) == 2 + n_per_pop * len(tree.leaves)
+
+        pop_counts = defaultdict(lambda: np.zeros(segsites, dtype=int))
+        for hap, pop in zip(lines[2:], haps2pops):
             hap = list(map(int, hap))
-            lin_counts[lin] += hap
-    return [{lin: {'derived':lin_counts[lin][i],
-                   'ancestral':n_lineages[lin] - lin_counts[lin][i]}
-             for lin in lineages}
-            for i in range(segsites)]
+            pop_counts[pop] += hap
+
+        for i in range(segsites):
+            ret += [{pop: {'derived':pop_counts[pop][i],
+                           'ancestral':n_per_pop - pop_counts[pop][i]}
+                     for pop in tree.leaves}]
+    return ret
 
 ### functions for manipulating the database of results (benchmark_results.db)
 

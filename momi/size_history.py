@@ -2,7 +2,7 @@ from __future__ import division
 from util import EPSILON, memoize, transformed_expi, expm1d, check_probs_matrix
 from math import fsum
 from numpy import exp, log, expm1, dot, diag
-from util import cached_property
+from util import cached_property, memoize_instance
 import numpy as np
 import scipy.integrate
 from scipy.special import comb as binom
@@ -76,6 +76,9 @@ class TruncatedSizeHistory(object):
         P,d,Pinv = moran_model.moran_eigensystem(self.n_max)
         D = diag(exp(self.scaled_time * d))
         return check_probs_matrix(dot(P,dot(D,Pinv)))
+        # return sp.linalg.expm(moran_model.rate_matrix(self.n_max).toarray() * self.scaled_time)
+        # return sp.sparse.linalg.expm_multiply(moran_model.rate_matrix(self.n_max) * self.scaled_time,
+        #                                       np.eye(self.n_max+1))
 
     def transition_prob(self, v):
         return dot(self.transition_matrix, v)

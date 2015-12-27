@@ -45,20 +45,29 @@ c:.3[&&momi:lineages=8:model=piecewise:model_0=exponential:tau_0=.2:N_top_0=.1:N
 
 demo3 = Demography.from_newick(newick_str)
 
-print "\nSFS entry for (1,3,0) for 3-population demography"
-# configuration represented by a dict of dicts, with derived/ancestral alleles in each leaf population
-entry = {'a': {'derived' : 1, 'ancestral': 9},
-         'b': {'derived' : 3, 'ancestral' : 2},
-         'c': {'derived' : 0, 'ancestral' : 8}}
-# compute SFS with Demography.sfs() method
-print demo3.sfs(entry)
+# construct a [list] of SNPs to compute SFS for
+# each SNP is represented as a {dict} giving the derived allele counts
+
+derived_counts_list = [{'a': 0, 'b': 0, 'c':1}, # singleton SNP in population 'c'
+                       {'a': 2, 'b':0, 'c':0}, # doubleton SNP in population 'a'
+                       {'a': 10,'b':5, 'c':0}, # SNP with derived allele fixed in 'a','b', but not present in 'c'
+                       ]
+
+# compute the SFS
+sfs_list = demo3.compute_sfs(derived_counts_list)
+
+print "Printing a few SFS entries for a 3 population demography"
+
+print "Derived_Counts","\t","SFS_Value"
+for derived_count,sfs_val in zip(derived_counts_list, sfs_list):
+    print derived_count, "\t", sfs_val
 
 
-### For benchmarking in paper (see benchmark.py), we also implemented Hua Chen's formulas,
+### For benchmarking in paper (see paper_results/compare_chen/benchmark.py), we also implemented Hua Chen's formulas,
 ### but ONLY for the special case of constant population size along each branch.
 try:
     # set use_chen_eqs=True to use Chen's formulas
-    print demo3.sfs(entry, use_chen_eqs=True)
+    print demo3.compute_sfs(derived_counts_list, use_chen_eqs=True)
 except NotImplementedError:
     # Chen's formulas not implemented for demo3, due to changing size along branches
     pass

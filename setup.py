@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 
 from distutils.core import setup
+from Cython.Build import cythonize
+from distutils.extension import Extension
+import numpy
+
+extensions = [Extension("convolution_momi",
+                        sources=["momi/convolution_momi.pyx"],
+                        include_dirs=[numpy.get_include()])]
 
 setup(name='momi',
       version='1.1.1',
@@ -11,5 +18,6 @@ setup(name='momi',
       install_requires=['biopython','numpy','scipy','networkx'],
       url='https://github.com/jackkamm/momi',
       download_url='https://github.com/jackkamm/momi/tarball/1.1',
-      keywords=['population genetics','statistics','site frequency spectrum','coalescent'],      
+      keywords=['population genetics','statistics','site frequency spectrum','coalescent'],
+      ext_modules=cythonize(extensions),      
       )
