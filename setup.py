@@ -10,7 +10,7 @@ extensions = [Extension("convolution_momi",
                         include_dirs=[numpy.get_include()])]
 
 setup(name='momi',
-      version='1.1.1',
+      version='1.2.0',
       description='Compute the site frequency spectrum (SFS) of population genetics',
       author='Jack Kamm, Jonathan Terhorst, Yun S. Song',
       author_email='jkamm@stat.berkeley.edu, terhorst@stat.berkeley.edu, yss@eecs.berkeley.edu',
