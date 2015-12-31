@@ -10,14 +10,13 @@ extensions = [Extension("convolution_momi",
                         include_dirs=[numpy.get_include()])]
 
 setup(name='momi',
-      version='1.2.2',
+      version='1.2.3',
       description='Compute the site frequency spectrum (SFS) of population genetics',
       author='Jack Kamm, Jonathan Terhorst, Yun S. Song',
       author_email='jkamm@stat.berkeley.edu, terhorst@stat.berkeley.edu, yss@eecs.berkeley.edu',
       packages=['momi'],      
       install_requires=['biopython','numpy','scipy','networkx'],
       url='https://github.com/jackkamm/momi',
-      download_url='https://github.com/jackkamm/momi/tarball/1.2.2',
       keywords=['population genetics','statistics','site frequency spectrum','coalescent'],
       ext_modules=cythonize(extensions),      
       )

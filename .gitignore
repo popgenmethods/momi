@@ -9,6 +9,6 @@ Rplots.pdf
 benchmark.out
 momi.egg-info
 seedms
-MANIFEST
+MANIFEST*
 dist/
 convolution_momi.c

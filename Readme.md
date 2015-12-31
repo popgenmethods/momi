@@ -27,7 +27,7 @@ The results from the paper are implemented in [paper_results/compare_chen/benchm
 
 ## Upcoming features
 
-The current version of momi is 1.2.0. Upcoming features for the next version (2.0.0) of momi are:
+The current version of momi is 1.2.3. Upcoming features for the next version (2.0.0) of momi are:
 * Pulse migration/admixture
 * Parameter inference via gradient descent, automatic differentiation
 * Improvements to user interface
