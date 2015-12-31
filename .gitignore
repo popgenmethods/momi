@@ -11,3 +11,4 @@ momi.egg-info
 seedms
 MANIFEST
 dist/
+convolution_momi.c
