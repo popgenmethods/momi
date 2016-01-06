@@ -149,14 +149,14 @@ def compute_momi(n_per_deme):
 r_file = 'plot.r'
 
 def plot_timing(results):
-    df = "\t".join(["N","n","seconds"])
+    df = "\t".join(["G","n","seconds"])
     for k,v in results.items():
         k = dict(k)
         if k['method'] == 'momi':
-            N = 0
+            G = 0
         elif k['method'] == 'dadi':
-            N = k['n_pts']
-        df += "\n" + "\t".join(map(str,[N,k['n_per_deme'],v['time']]))
+            G = k['n_pts']
+        df += "\n" + "\t".join(map(str,[G,k['n_per_deme'],v['time']]))
 
     p = subprocess.Popen(["Rscript",r_file,"timing"], stdin=subprocess.PIPE,cwd='figures')
     p.communicate(df)
@@ -232,23 +232,3 @@ class Timer:
 
 if __name__=="__main__":
     main()
-
-
-### compute sfs with momi2
-
-# def compute_momi2(n_per_deme):
-#     demo = ["-I 3 %d %d %d" % tuple([n_per_deme]*3),
-#             "-n 1 %f -n 2 %f -n 3 %f" % (N_af, N_as_f, N_eu_f),
-#             "-g 2 %f -g 3 %f" % (r_as, r_eu),
-#             "-ej %f 3 2 -en %f 2 %f" % (T_eu_as / 2.0, T_eu_as / 2.0, N_b),
-#             "-ej %f 2 1" % (T_b / 2.0),
-#             "-en %f 1 %f" % (T_af / 2.0, 1.0),
-#             ]
-#     demo = momi2.Demography.from_ms(1.0, " ".join(demo))
-
-#     config_list = [(i,j,k)
-#                    for i,j,k in itertools.product(range(n_per_deme+1),repeat=3)
-#                    if not (i == j and i ==k and (i==0 or i == n_per_deme))]
-
-#     return dict(zip(config_list, 2*momi2.expected_sfs(demo, config_list)))
-
