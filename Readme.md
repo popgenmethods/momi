@@ -10,20 +10,21 @@ approaches to computing the multipopulation SFS.
 
 ## Installation
 
-To install, type
-```
-pip install momi
-```
 Prerequisites:
 * Scientific distribution of Python 2.7, e.g. [Anaconda](http://continuum.io/downloads), [Enthought Canopy](https://www.enthought.com/products/canopy/)
   * Alternatively, custom installation of pip, and the SciPy stack
 * gcc
 
+To install, simply type
+```
+pip install momi
+```
+
 ## Getting started
 
 See [tutorial.py](tutorial.py) to get started.
 
-The results from the paper are implemented in [paper_results/compare_chen/benchmark.py](paper_results/compare_chen/benchmark.py).
+The results from the paper are implemented in [paper_results/](paper_results/).
 
 ## Upcoming features
 
