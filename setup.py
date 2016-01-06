@@ -16,7 +16,7 @@ setup(name='momi',
       author_email='jkamm@stat.berkeley.edu, terhorst@stat.berkeley.edu, yss@eecs.berkeley.edu',
       packages=['momi'],      
       install_requires=['biopython','numpy','scipy','networkx'],
-      url='https://github.com/jackkamm/momi',
+      url='https://github.com/popgenmethods/momi',
       keywords=['population genetics','statistics','site frequency spectrum','coalescent'],
       ext_modules=cythonize(extensions),      
       )
