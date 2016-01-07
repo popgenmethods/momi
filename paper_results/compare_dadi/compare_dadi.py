@@ -22,8 +22,9 @@ def main():
 
     if sys.argv[-1] == "--reset":
         results = {}
-
+        
     jobs = []
+    old_results = dict(results)
     for n_per_deme in n_per_deme_list:
         jobs += [{'method': 'momi',
                   'n_per_deme': n_per_deme}]
@@ -60,8 +61,9 @@ def main():
             results[key]['time'] = phi_t + t.interval
 
     # save results
-    with file(results_file,'w') as f:
-        pickle.dump(results,f,-1)
+    if results != old_results:
+        with file(results_file,'w') as f:
+            pickle.dump(results,f,-1)
 
     # plot results
     summarize_results(results)

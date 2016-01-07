@@ -17,8 +17,8 @@ timing <- function(){
     table <- read.table(file('stdin'),head=T)
     table$G <- factor(table$G)
     levels(table$G)[1] <- 'momi'
-    p <- ggplot(table, aes(x=n,y=seconds,color=G,linetype=G)) + scale_y_log10() + geom_point() + geom_line()
-    ggsave('timing.pdf',p)
+    p <- ggplot(table, aes(x=n,y=seconds,color=G,linetype=G)) + scale_y_log10() + geom_point(aes(shape=G)) + geom_line() + scale_shape_manual(values=seq(0,8))
+    ggsave('dadi_timing.pdf',p)
 }
 
 accuracy <- function(){
@@ -30,11 +30,10 @@ accuracy <- function(){
 
     table <- table[sample(nrow(table)),]
 
-    p <- ggplot(table, aes(x=momi,y=abs.ratio, color=sign)) + geom_point() + geom_abline(intercept=0,slope=0) + scale_x_log10() + scale_y_log10() + ylab('|dadi/momi|') + facet_grid(G~n, labeller=label_both) + guides(color=guide_legend(title="sign (dadi)"))
+    leg = guide_legend(title="sign (dadi)")
+    p <- ggplot(table, aes(x=momi,y=abs.ratio, color=sign, shape=sign)) + geom_point() + geom_abline(intercept=0,slope=0) + scale_x_log10() + scale_y_log10() + ylab('|dadi/momi|') + facet_grid(G~n, labeller=label_both) + guides(color=leg, shape=leg) + scale_shape_manual(values=c(8,1))
 
-    #p <- ggplot(table, aes(x=momi,y=val,color=factor(n))) + geom_point() + geom_abline(intercept=0,slope=1)  + scale_x_log10() + scale_y_log10() + facet_wrap(~ n.pts)
-
-    ggsave('accuracy.png',p,width=10,height=10)
+    ggsave('dadi_accuracy.png',p,width=10,height=10)
 
     f <- file('ratio_summary.txt')
     cat(summary(table$val / table$momi), file=f)
