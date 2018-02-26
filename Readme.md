@@ -11,11 +11,6 @@ approaches to computing the multipopulation SFS.
 
 ## Installation
 
-Prerequisites:
-* Scientific distribution of Python 2.7, e.g. [Anaconda](http://continuum.io/downloads), [Enthought Canopy](https://www.enthought.com/products/canopy/)
-  * Alternatively, custom installation of pip, and the SciPy stack
-* gcc
-
 First, make sure you have Python 2.7, pip, and numpy installed. Then type
 ```
 pip install momi
