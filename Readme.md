@@ -16,7 +16,7 @@ Prerequisites:
   * Alternatively, custom installation of pip, and the SciPy stack
 * gcc
 
-To install, simply type
+First, make sure you have Python 2.7, pip, and numpy installed. Then type
 ```
 pip install momi
 ```
