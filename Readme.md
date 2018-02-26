@@ -26,12 +26,3 @@ pip install momi
 See [tutorial.py](tutorial.py) to get started.
 
 See [this repository](https://github.com/jackkamm/momi1_paper_results) to reproduce the results in the paper.
-
-## Upcoming features
-
-The current version of momi is 1.2.3. Upcoming features for the next version (2.0.0) of momi are:
-* Pulse migration/admixture
-* Parameter inference via gradient descent, automatic differentiation
-* Improvements to user interface
-
-Version 2.0 will be released in 2016, to be accompanied with a second paper.
