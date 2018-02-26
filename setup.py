@@ -5,9 +5,30 @@ from Cython.Build import cythonize
 from distutils.extension import Extension
 import numpy
 
-extensions = [Extension("convolution_momi",
-                        sources=["momi/convolution_momi.pyx"],
-                        include_dirs=[numpy.get_include()])]
+try:
+    from Cython.Distutils import build_ext
+except ImportError:
+    use_cython = False
+else:
+    use_cython = True
+
+cmdclass = {}
+ext_modules = []
+
+if use_cython:
+    ext_modules.append(
+        Extension("convolution_momi",
+                  sources=["momi/convolution_momi.pyx"],
+                  include_dirs=[numpy.get_include()]))
+    cmdclass['build_ext'] = build_ext
+else:
+    ext_modules.append(
+        Extension("convolution_momi",
+                  sources=["momi/convolution_momi.c"],
+                  include_dirs=[numpy.get_include()]))
+
+
+# see https://stackoverflow.com/a/4515279/3718509 and https://packaging.python.org/tutorials/distributing-packages/ for uploading to pypi
 
 setup(name='momi',
       version='1.2.5',
@@ -22,5 +43,5 @@ setup(name='momi',
             'networkx'],
       url='https://github.com/popgenmethods/momi',
       keywords=['population genetics', 'statistics', 'site frequency spectrum', 'coalescent'],
-      ext_modules=cythonize(extensions),
-      )
+      ext_modules=ext_modules,
+      cmdclass=cmdclass)
