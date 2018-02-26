@@ -1,3 +1,4 @@
+import os
 import cPickle as pickle
 import itertools
 
@@ -6,7 +7,9 @@ import numpy as np
 
 from test_demography import demo
 
-results_file = 'test/test_sfs.pickle'
+results_file = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    "test_sfs.pickle")
 
 with open(results_file, 'r') as f:
     results = pickle.load(f)
