@@ -57,13 +57,13 @@ class Demography(nx.DiGraph):
 
     @cached_property
     def root(self):
-        nds = [node for node, deg in self.in_degree().items() if deg == 0]
+        nds = [node for node, deg in dict(self.in_degree()).items() if deg == 0]
         assert len(nds) == 1
         return nds[0]
 
     @cached_property
     def leaves(self):
-        return set([k for k, v in self.out_degree().items() if v == 0])
+        return set([k for k, v in dict(self.out_degree()).items() if v == 0])
 
     def is_leaf(self, node):
         return node in self.leaves
@@ -128,7 +128,8 @@ def _newick_to_nx(newick, default_lineages=None):
                 i += 1
             ed = {'branch_length': c_clade.branch_length}
             edges.append((clade.name, (c_clade.name), ed))
-    t = nx.DiGraph(data=edges)
+    t = nx.DiGraph()
+    t.add_edges_from(edges)
     t.add_nodes_from(nodes)
     tn = dict(t.nodes(data=True))
     for node in node_data:
