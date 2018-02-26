@@ -1,0 +1,2 @@
+include momi/*.c
+exclude momi/*.pyx
