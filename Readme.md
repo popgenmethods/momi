@@ -21,3 +21,7 @@ pip install momi
 See [tutorial.py](tutorial.py) to get started.
 
 See [this repository](https://github.com/jackkamm/momi1_paper_results) to reproduce the results in the paper.
+
+## momi2
+
+This package has been succeeded by [momi2](https://github.com/jackkamm/momi2), which is the recommended version now. New features include pulse migration and maximum likelihood inference.
