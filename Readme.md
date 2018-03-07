@@ -13,8 +13,9 @@ approaches to computing the multipopulation SFS.
 
 First, make sure you have Python 2.7, pip, and numpy installed. Then type
 ```
-pip install momi
+pip install .
 ```
+from the root directory.
 
 ## Getting started
 
