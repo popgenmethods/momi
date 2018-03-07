@@ -25,4 +25,4 @@ See [this repository](https://github.com/jackkamm/momi1_paper_results) to reprod
 
 ## momi2
 
-This package has been succeeded by [momi2](https://github.com/jackkamm/momi2), which is the recommended version now. New features include pulse migration and maximum likelihood inference.
+This package is now superceded by [momi2](https://github.com/jackkamm/momi2), which is the recommended version to use. New features include pulse migration and maximum likelihood inference.
